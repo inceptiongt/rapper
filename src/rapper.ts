@@ -20,7 +20,7 @@ import {
   templateFilesRelyConfirm,
   latestVersion,
 } from './utils';
-import { getInterfaces, getIntfWithModelName, uniqueItfs, creatHeadHelpStr } from './core/tools';
+import { getInterfaces, getTemplate, getIntfWithModelName, uniqueItfs, creatHeadHelpStr } from './core/tools';
 import { findDeleteFiles, findChangeFiles, findRapperVersion } from './core/scanFile';
 import url = require('url');
 import * as semver from 'semver';
@@ -140,6 +140,21 @@ export default async function({
   }
   interfaces = uniqueItfs(getIntfWithModelName(rapUrl, interfaces, urlMapper));
 
+  /**
+   * 获取所有接口template
+   */
+  let template = [];
+  spinner.start(chalk.grey('rapper: 正在从 Rap 平台获取接口模板...'));
+  try {
+    const rst = interfaces.map(i => {
+      const { url, method } = i;
+      return getTemplate(apiUrl, i.id).then(d => ({ [`${method}${url}`]: d }));
+    });
+    template = await Promise.all(rst);
+    spinner.succeed(chalk.grey('rapper: 获取接口模板成功'));
+  } catch (e) {
+    return new Promise(() => spinner.fail(chalk.red(`rapper: 获取接口模板失败，${e}`)));
+  }
   /** Rap 接口引用扫描，如果 projectId 更改了就不再扫描，避免过多的报错信息展现在Terminal */
   spinner.start(chalk.grey('rapper: 正在扫描接口依赖'));
   if (getOldProjectId(rapperPath) === String(projectId)) {
@@ -211,6 +226,17 @@ export default async function({
     outputFiles.push({
       path: `${rapperPath}/request.ts`,
       content: format(requestStr, DEFAULT_OPTIONS),
+    });
+
+    /** 生成 template.ts */
+    const templateStr = `
+      ${creatHeadHelpStr(rapUrl, projectId, rapperVersion)}
+      const rst = ${JSON.stringify(template)}
+      export default rst
+    `;
+    outputFiles.push({
+      path: `${rapperPath}/template.ts`,
+      content: format(templateStr, DEFAULT_OPTIONS),
     });
 
     /** 生成 ${type}.ts 动态的 */

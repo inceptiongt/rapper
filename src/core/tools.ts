@@ -65,6 +65,15 @@ export async function getInterfaces(rapApiUrl: string) {
 
   return interfaces;
 }
+/** 从rap查询接口template */
+export async function getTemplate(rapApiUrl: string, interfaceId: number) {
+  const host = rapApiUrl.match(/http\:\/\/[A-Za-z0-9.:]*/)[0];
+  const response = await axios.get(`${host}/app/mock/template/${interfaceId}`, {
+    timeout: 1000 * 20,
+  });
+
+  return response.data;
+}
 /**
  * 转换rap接口名称
  */
